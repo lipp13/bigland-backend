@@ -978,17 +978,18 @@ router.post('/attendance/scan-qr', async (req, res) => {
         });
       }
 
+      const empCode = employee.employee_id || employee.nip;
       return res.json({
         success: true,
         action: 'CHECK_IN',
-        message: `Absen MASUK Berhasil untuk ${employee.user?.name || employee.nip}!`,
+        message: `Absen MASUK Berhasil untuk ${employee.user?.name || empCode}!`,
         employee: {
           id: employee.id,
-          nip: employee.nip,
+          nip: empCode,
           name: employee.user?.name || '',
           department: employee.department?.name || '-',
           position: employee.position?.name || '-',
-          avatar: employee.user?.avatar || null
+          avatar: employee.avatar || null
         },
         record: {
           id: record.id, date: record.date, checkIn: record.check_in,
@@ -1001,17 +1002,18 @@ router.post('/attendance/scan-qr', async (req, res) => {
       existing.notes = `${existing.notes} | Absen Pulang via Kiosk Scanner QR jam ${timeStr}`;
       await existing.save();
 
+      const empCode = employee.employee_id || employee.nip;
       return res.json({
         success: true,
         action: 'CHECK_OUT',
-        message: `Absen PULANG Berhasil untuk ${employee.user?.name || employee.nip}!`,
+        message: `Absen PULANG Berhasil untuk ${employee.user?.name || empCode}!`,
         employee: {
           id: employee.id,
-          nip: employee.nip,
+          nip: empCode,
           name: employee.user?.name || '',
           department: employee.department?.name || '-',
           position: employee.position?.name || '-',
-          avatar: employee.user?.avatar || null
+          avatar: employee.avatar || null
         },
         record: {
           id: existing.id, date: existing.date, checkIn: existing.check_in,
@@ -1020,8 +1022,9 @@ router.post('/attendance/scan-qr', async (req, res) => {
         }
       });
     } else {
+      const empCode = employee.employee_id || employee.nip;
       return res.status(400).json({
-        message: `Karyawan ${employee.user?.name || employee.nip} sudah menyelesaikan Absen Masuk (${existing.check_in}) & Absen Pulang (${existing.check_out}) hari ini.`
+        message: `Karyawan ${employee.user?.name || empCode} sudah menyelesaikan Absen Masuk (${existing.check_in}) & Absen Pulang (${existing.check_out}) hari ini.`
       });
     }
   } catch (err) {
