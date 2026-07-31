@@ -821,14 +821,15 @@ router.post('/attendance/check-out', authenticate, async (req, res) => {
 });
 
 // Helper for generating daily QR Code token
-function generateDailyQrToken(employeeId, nip, dateStr) {
+function generateDailyQrToken(employeeId, empCode, dateStr) {
   const secret = JWT_SECRET || 'bigland_sentul_jwt_secret_key_2026';
-  const raw = `BIGLAND-QR|${employeeId}|${nip}|${dateStr}|${secret}`;
+  const code = empCode || `EMP-${employeeId}`;
+  const raw = `BIGLAND-QR|${employeeId}|${code}|${dateStr}|${secret}`;
   const hash = crypto.createHash('sha256').update(raw).digest('hex').substring(0, 12);
   return JSON.stringify({
     sys: 'BIGLAND-HRIS',
     empId: employeeId,
-    nip: nip,
+    nip: code,
     date: dateStr,
     hash: hash
   });
@@ -856,13 +857,13 @@ router.get('/attendance/employee-qr', authenticate, async (req, res) => {
     }
 
     const today = new Date().toISOString().split('T')[0];
-    const qrPayloadString = generateDailyQrToken(employee.id, employee.nip, today);
+    const qrPayloadString = generateDailyQrToken(employee.id, employee.employee_id || employee.nip, today);
 
     return res.json({
       success: true,
       employee: {
         id: employee.id,
-        nip: employee.nip,
+        nip: employee.employee_id || employee.nip,
         name: employee.user?.name || '',
         email: employee.user?.email || ''
       },
@@ -874,8 +875,8 @@ router.get('/attendance/employee-qr', authenticate, async (req, res) => {
   }
 });
 
-// POST /api/attendance/scan-qr - Process scanned QR code from Kiosk Scanner
-router.post('/attendance/scan-qr', authenticate, async (req, res) => {
+// POST /api/attendance/scan-qr - Process scanned QR code from Kiosk Scanner (Public Kiosk Endpoint)
+router.post('/attendance/scan-qr', async (req, res) => {
   try {
     const { qrData, location } = req.body;
     if (!qrData) {
@@ -908,7 +909,12 @@ router.post('/attendance/scan-qr', authenticate, async (req, res) => {
 
     if (!employee && parsed.nip) {
       employee = await Employee.findOne({
-        where: { nip: parsed.nip },
+        where: {
+          [Op.or]: [
+            { employee_id: parsed.nip },
+            { employee_id: `EMP-${parsed.nip}` }
+          ]
+        },
         include: [
           { model: User, as: 'user', attributes: ['name', 'email', 'avatar'] },
           { model: Department, as: 'department', attributes: ['name'] },
@@ -923,7 +929,8 @@ router.post('/attendance/scan-qr', authenticate, async (req, res) => {
 
     if (parsed.sys === 'BIGLAND-HRIS' && parsed.hash) {
       const secret = JWT_SECRET || 'bigland_sentul_jwt_secret_key_2026';
-      const raw = `BIGLAND-QR|${employee.id}|${employee.nip}|${today}|${secret}`;
+      const empCode = employee.employee_id || employee.nip;
+      const raw = `BIGLAND-QR|${employee.id}|${empCode}|${today}|${secret}`;
       const expectedHash = crypto.createHash('sha256').update(raw).digest('hex').substring(0, 12);
       if (parsed.hash !== expectedHash) {
         return res.status(400).json({ message: 'Kode QR tidak sah atau telah dimodifikasi.' });
