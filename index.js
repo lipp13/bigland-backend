@@ -40,9 +40,9 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Start server immediately so Railway health check passes instantly
-app.listen(PORT, () => {
-  console.log(`🚀 Server Bigland HRIS running on port ${PORT}`);
+// Start server immediately on 0.0.0.0 so Railway proxy router connects instantly
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 Server Bigland HRIS running on port ${PORT} (host: 0.0.0.0)`);
   
   // Background database sync
   sequelize.sync({ alter: true }).then(() => {
