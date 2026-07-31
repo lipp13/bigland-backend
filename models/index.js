@@ -6,6 +6,7 @@ const user = process.env.DB_USER || process.env.MYSQLUSER || 'root';
 const password = process.env.DB_PASS || process.env.MYSQLPASSWORD || process.env.DB_PASSWORD || '';
 const database = process.env.DB_NAME || process.env.MYSQLDATABASE || 'bigland_hris';
 
+let sequelize;
 const dbUrl = process.env.MYSQL_PUBLIC_URL || process.env.MYSQL_URL || process.env.DATABASE_URL;
 if (dbUrl) {
   sequelize = new Sequelize(dbUrl, {
