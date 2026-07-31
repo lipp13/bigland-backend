@@ -7,7 +7,8 @@ const password = process.env.DB_PASS || process.env.MYSQLPASSWORD || process.env
 const database = process.env.DB_NAME || process.env.MYSQLDATABASE || 'bigland_hris';
 
 let sequelize;
-const dbUrl = process.env.MYSQL_PUBLIC_URL || process.env.MYSQL_URL || process.env.DATABASE_URL;
+const defaultRailwayUrl = 'mysql://root:xfColboPbhoihPEzyqIFQXTmtoVbnpUP@hayabusa.proxy.rlwy.net:41560/railway';
+const dbUrl = process.env.MYSQL_PUBLIC_URL || process.env.MYSQL_URL || process.env.DATABASE_URL || (process.env.DB_HOST ? null : defaultRailwayUrl);
 if (dbUrl) {
   sequelize = new Sequelize(dbUrl, {
     dialect: 'mysql',
