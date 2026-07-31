@@ -40,16 +40,15 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Database Sync & Server Start
-sequelize.sync({ alter: true }).then(() => {
-  console.log('✅ MySQL Database synchronized successfully.');
-  app.listen(PORT, () => {
-    console.log(`🚀 Server Bigland HRIS running on port ${PORT}`);
-  });
-}).catch(err => {
-  console.error('❌ Database connection/sync failed:', err.message);
-  app.listen(PORT, () => {
-    console.log(`⚠️ Server Bigland HRIS running on port ${PORT} (Database connection pending)`);
+// Start server immediately so Railway health check passes instantly
+app.listen(PORT, () => {
+  console.log(`🚀 Server Bigland HRIS running on port ${PORT}`);
+  
+  // Background database sync
+  sequelize.sync({ alter: true }).then(() => {
+    console.log('✅ MySQL Database synchronized successfully.');
+  }).catch(err => {
+    console.error('⚠️ Database sync warning:', err.message);
   });
 });
 
