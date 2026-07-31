@@ -10,6 +10,7 @@ const {
 } = require('../models');
 const { authenticate, requireAdmin, requireSuperAdmin, JWT_SECRET } = require('../middleware/auth');
 const { generateAttendancePDF, generateAttendanceExcel } = require('../services/exportService');
+const { sendTelegramAuditLog } = require('../services/telegramService');
 
 // =========================================================
 // AUTH ROUTES
@@ -937,6 +938,10 @@ router.post('/attendance/scan-qr', async (req, res) => {
       }
     }
 
+    const clientIp = req.headers['x-forwarded-for']?.split(',')[0] || req.socket?.remoteAddress || req.ip || '127.0.0.1';
+    const clientDeviceInfo = req.body.deviceInfo || req.headers['user-agent'] || 'Kiosk Web Browser';
+    const clientLocation = location || req.body.locationName || 'Lobi Utama Bigland Hotel Sentul';
+
     const existing = await Attendance.findOne({
       where: { employee_id: employee.id, date: today }
     });
@@ -963,7 +968,7 @@ router.post('/attendance/scan-qr', async (req, res) => {
       if (existing) {
         existing.check_in = timeStr;
         existing.status = status;
-        existing.location = location || 'Lobi Utama Kiosk Scanner';
+        existing.location = clientLocation;
         existing.notes = notes;
         await existing.save();
         record = existing;
@@ -973,16 +978,27 @@ router.post('/attendance/scan-qr', async (req, res) => {
           date: today,
           check_in: timeStr,
           status,
-          location: location || 'Lobi Utama Kiosk Scanner',
+          location: clientLocation,
           notes
         });
       }
 
       const empCode = employee.employee_id || employee.nip;
+
+      // 📢 Send Telegram Real-time Audit Log
+      sendTelegramAuditLog({
+        action: 'CHECK_IN',
+        employee,
+        record: { date: record.date, time: record.check_in },
+        deviceInfo: clientDeviceInfo,
+        ip: clientIp,
+        location: clientLocation
+      }).catch(err => console.warn('Telegram Audit Error:', err.message));
+
       return res.json({
         success: true,
         action: 'CHECK_IN',
-        message: `Absen MASUK Berhasil untuk ${employee.user?.name || empCode}!`,
+        message: `Absen MASUK Berhasil untuk ${employee.user?.name || empCode}! (Scan 1/2 Harian)`,
         employee: {
           id: employee.id,
           nip: empCode,
@@ -1003,10 +1019,21 @@ router.post('/attendance/scan-qr', async (req, res) => {
       await existing.save();
 
       const empCode = employee.employee_id || employee.nip;
+
+      // 📢 Send Telegram Real-time Audit Log
+      sendTelegramAuditLog({
+        action: 'CHECK_OUT',
+        employee,
+        record: { date: existing.date, time: existing.check_out },
+        deviceInfo: clientDeviceInfo,
+        ip: clientIp,
+        location: clientLocation
+      }).catch(err => console.warn('Telegram Audit Error:', err.message));
+
       return res.json({
         success: true,
         action: 'CHECK_OUT',
-        message: `Absen PULANG Berhasil untuk ${employee.user?.name || empCode}!`,
+        message: `Absen PULANG Berhasil untuk ${employee.user?.name || empCode}! (Scan 2/2 Harian)`,
         employee: {
           id: employee.id,
           nip: empCode,
@@ -1024,7 +1051,7 @@ router.post('/attendance/scan-qr', async (req, res) => {
     } else {
       const empCode = employee.employee_id || employee.nip;
       return res.status(400).json({
-        message: `Karyawan ${employee.user?.name || empCode} sudah menyelesaikan Absen Masuk (${existing.check_in}) & Absen Pulang (${existing.check_out}) hari ini.`
+        message: `⛔ BATAS PRESENSI HARIAN TERCAPAI!\nKaryawan ${employee.user?.name || empCode} sudah melakukan 2x scan hari ini (Masuk: ${existing.check_in} | Pulang: ${existing.check_out}). Perangkat/Karyawan ini tidak dapat melakukan scan ke-3.`
       });
     }
   } catch (err) {
