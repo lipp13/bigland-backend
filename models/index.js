@@ -8,7 +8,7 @@ const database = process.env.DB_NAME || process.env.MYSQLDATABASE || 'bigland_hr
 
 let sequelize;
 const defaultRailwayUrl = 'mysql://root:xfColboPbhoihPEzyqIFQXTmtoVbnpUP@hayabusa.proxy.rlwy.net:41560/railway';
-const dbUrl = process.env.MYSQL_PUBLIC_URL || process.env.MYSQL_URL || process.env.DATABASE_URL || (process.env.DB_HOST ? null : defaultRailwayUrl);
+const dbUrl = process.env.MYSQL_PUBLIC_URL || process.env.MYSQL_URL || process.env.DATABASE_URL || defaultRailwayUrl;
 if (dbUrl) {
   sequelize = new Sequelize(dbUrl, {
     dialect: 'mysql',

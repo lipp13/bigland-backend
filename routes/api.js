@@ -72,10 +72,7 @@ router.post('/auth/login', async (req, res) => {
     });
   } catch (err) {
     console.error('Login error:', err);
-    return res.status(500).json({
-      message: 'Terjadi kesalahan server.',
-      error: err ? (err.stack || err.message || String(err)) : 'Unknown'
-    });
+    return res.status(500).json({ message: 'Terjadi kesalahan server.', error: err.message });
   }
 });
 
