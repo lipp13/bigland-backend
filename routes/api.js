@@ -898,11 +898,11 @@ router.post('/attendance/scan-qr', async (req, res) => {
       }
     }
 
-    const today = new Date().toISOString().split('T')[0];
-
-    if (parsed.date && parsed.date !== today) {
-      return res.status(400).json({ message: `Kode QR ini sudah kedaluwarsa (berlaku untuk tanggal ${parsed.date}). Harap perbarui QR di aplikasi karyawan!` });
-    }
+    const now = new Date();
+    const today = now.toISOString().split('T')[0];
+    const yesterdayDate = new Date(now);
+    yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+    const yesterday = yesterdayDate.toISOString().split('T')[0];
 
     let employee = null;
     if (parsed.empId) {
@@ -935,26 +935,69 @@ router.post('/attendance/scan-qr', async (req, res) => {
       return res.status(404).json({ message: 'Karyawan dari Kode QR ini tidak ditemukan dalam sistem.' });
     }
 
-    if (parsed.sys === 'BIGLAND-HRIS' && parsed.hash) {
-      const secret = JWT_SECRET || 'bigland_sentul_jwt_secret_key_2026';
-      const empCode = employee.employee_id || employee.nip;
-      const raw = `BIGLAND-QR|${employee.id}|${empCode}|${today}|${secret}`;
-      const expectedHash = crypto.createHash('sha256').update(raw).digest('hex').substring(0, 12);
-      if (parsed.hash !== expectedHash) {
-        return res.status(400).json({ message: 'Kode QR tidak sah atau telah dimodifikasi.' });
+    // 🌙 Check if employee has an active open Night Shift from yesterday (Checked in yesterday, not checked out yet)
+    const openNightShiftRecord = await Attendance.findOne({
+      where: {
+        employee_id: employee.id,
+        date: yesterday,
+        check_in: { [Op.ne]: null },
+        check_out: null
       }
+    });
+
+    // Accept QR code if date matches TODAY or YESTERDAY (or if completing an open Night Shift)
+    if (parsed.date && parsed.date !== today && parsed.date !== yesterday && !openNightShiftRecord) {
+      return res.status(400).json({ message: `Kode QR ini sudah kedaluwarsa (berlaku untuk tanggal ${parsed.date}). Harap perbarui QR di aplikasi karyawan!` });
     }
 
     const clientIp = req.headers['x-forwarded-for']?.split(',')[0] || req.socket?.remoteAddress || req.ip || '127.0.0.1';
     const clientDeviceInfo = req.body.deviceInfo || req.headers['user-agent'] || 'Kiosk Web Browser';
     const clientLocation = location || req.body.locationName || 'Lobi Utama Bigland Hotel Sentul';
 
+    const timeStr = now.toTimeString().split(' ')[0];
+
+    // 🌙 1. Handle Active Night Shift Check-Out (Cross Midnight 22:00 -> 04:00 AM)
+    if (openNightShiftRecord) {
+      openNightShiftRecord.check_out = timeStr;
+      openNightShiftRecord.notes = `${openNightShiftRecord.notes || ''} | Absen Pulang Shift Malam (Cross-Midnight) jam ${timeStr}`;
+      await openNightShiftRecord.save();
+
+      const empCode = employee.employee_id || employee.nip;
+
+      // 📢 Send Telegram Real-time Audit Log
+      sendTelegramAuditLog({
+        action: 'CHECK_OUT',
+        employee,
+        record: { date: openNightShiftRecord.date, time: openNightShiftRecord.check_out },
+        deviceInfo: clientDeviceInfo,
+        ip: clientIp,
+        location: clientLocation
+      }).catch(err => console.warn('Telegram Audit Error:', err.message));
+
+      return res.json({
+        success: true,
+        action: 'CHECK_OUT',
+        message: `Absen PULANG SHIFT MALAM Berhasil untuk ${employee.user?.name || empCode}! (Jam ${timeStr})`,
+        employee: {
+          id: employee.id,
+          nip: empCode,
+          name: employee.user?.name || '',
+          department: employee.department?.name || '-',
+          position: employee.position?.name || '-',
+          avatar: employee.avatar || null
+        },
+        record: {
+          id: openNightShiftRecord.id, date: openNightShiftRecord.date, checkIn: openNightShiftRecord.check_in,
+          checkOut: openNightShiftRecord.check_out, status: openNightShiftRecord.status,
+          location: openNightShiftRecord.location, notes: openNightShiftRecord.notes
+        }
+      });
+    }
+
+    // 2. Standard Same-Day Check-In / Check-Out Processing
     const existing = await Attendance.findOne({
       where: { employee_id: employee.id, date: today }
     });
-
-    const now = new Date();
-    const timeStr = now.toTimeString().split(' ')[0];
 
     if (!existing || !existing.check_in) {
       const hours = now.getHours();
