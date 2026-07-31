@@ -6,7 +6,7 @@ const crypto = require('crypto');
 const { Op } = require('sequelize');
 const {
   User, Employee, Department, Position, Shift,
-  Schedule, Attendance, LeaveRequest, Setting, sequelize
+  Schedule, Attendance, LeaveRequest, Setting, Announcement, sequelize
 } = require('../models');
 const { authenticate, requireAdmin, requireSuperAdmin, JWT_SECRET } = require('../middleware/auth');
 const { generateAttendancePDF, generateAttendanceExcel } = require('../services/exportService');
@@ -1358,7 +1358,80 @@ router.get('/system/backup', authenticate, requireSuperAdmin, async (req, res) =
     res.setHeader('Content-Disposition', `attachment; filename="Backup_Bigland_HRIS_${new Date().toISOString().split('T')[0]}.json"`);
     return res.send(JSON.stringify(backupData, null, 2));
   } catch (err) {
-    return res.status(500).json({ message: 'Gagal membuat cadangan database.', error: err.message });
+// =========================================================
+// ANNOUNCEMENTS CRUD
+// =========================================================
+
+router.get('/announcements', async (req, res) => {
+  try {
+    const list = await Announcement.findAll({ order: [['id', 'DESC']] });
+    if (list.length === 0) {
+      // Create initial seed announcement if empty
+      const initItem = await Announcement.create({
+        title: '📢 Himbauan Presensi QR & Kebijakan Shift Hari Raya',
+        content: 'Diberitahukan kepada seluruh karyawan Bigland Hotel Sentul bahwa sistem presensi QR harian wajib dilakukan pada lobi/area kerja.',
+        date: new Date().toISOString().split('T')[0],
+        author: 'HRD Manager',
+        is_important: true
+      });
+      return res.json([{
+        id: initItem.id,
+        title: initItem.title,
+        content: initItem.content,
+        date: initItem.date,
+        author: initItem.author,
+        isImportant: initItem.is_important
+      }]);
+    }
+    return res.json(list.map(a => ({
+      id: a.id,
+      title: a.title,
+      content: a.content,
+      date: a.date,
+      author: a.author,
+      isImportant: a.is_important
+    })));
+  } catch (err) {
+    return res.status(500).json({ message: 'Gagal memuat pengumuman.', error: err.message });
+  }
+});
+
+router.post('/announcements', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { title, content, isImportant } = req.body;
+    const authorName = req.user?.name || 'HRD Manager';
+    const today = new Date().toISOString().split('T')[0];
+    const item = await Announcement.create({
+      title,
+      content,
+      date: today,
+      author: authorName,
+      is_important: isImportant !== undefined ? isImportant : true
+    });
+    return res.status(201).json({
+      success: true,
+      announcement: {
+        id: item.id,
+        title: item.title,
+        content: item.content,
+        date: item.date,
+        author: item.author,
+        isImportant: item.is_important
+      }
+    });
+  } catch (err) {
+    return res.status(500).json({ message: 'Gagal membuat pengumuman baru.', error: err.message });
+  }
+});
+
+router.delete('/announcements/:id', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const item = await Announcement.findByPk(req.params.id);
+    if (!item) return res.status(404).json({ message: 'Pengumuman tidak ditemukan.' });
+    await item.destroy();
+    return res.json({ success: true, message: 'Pengumuman berhasil dihapus.' });
+  } catch (err) {
+    return res.status(500).json({ message: 'Gagal menghapus pengumuman.', error: err.message });
   }
 });
 

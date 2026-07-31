@@ -118,6 +118,16 @@ const Setting = sequelize.define('Setting', {
   setting_value: { type: DataTypes.TEXT }
 }, { tableName: 'settings' });
 
+// 10. Announcement Model
+const Announcement = sequelize.define('Announcement', {
+  id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+  title: { type: DataTypes.STRING(255), allowNull: false },
+  content: { type: DataTypes.TEXT, allowNull: false },
+  date: { type: DataTypes.DATEONLY, defaultValue: DataTypes.NOW },
+  author: { type: DataTypes.STRING(100), defaultValue: 'HRD Manager' },
+  is_important: { type: DataTypes.BOOLEAN, defaultValue: true }
+}, { tableName: 'announcements' });
+
 // ==========================================
 // Relationships
 // ==========================================
@@ -160,5 +170,6 @@ module.exports = {
   Schedule,
   Attendance,
   LeaveRequest,
-  Setting
+  Setting,
+  Announcement
 };
