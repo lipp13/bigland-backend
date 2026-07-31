@@ -843,12 +843,12 @@ router.get('/attendance/employee-qr', authenticate, async (req, res) => {
     if (user.role === 'EMPLOYEE' || req.query.employeeId) {
       const empId = req.query.employeeId || user.employeeId;
       employee = await Employee.findByPk(empId, {
-        include: [{ model: User, as: 'user', attributes: ['name', 'email', 'avatar'] }]
+        include: [{ model: User, as: 'user', attributes: ['name', 'email'] }]
       });
     } else {
       employee = await Employee.findOne({
         where: { user_id: user.id },
-        include: [{ model: User, as: 'user', attributes: ['name', 'email', 'avatar'] }]
+        include: [{ model: User, as: 'user', attributes: ['name', 'email'] }]
       });
     }
 
@@ -900,7 +900,7 @@ router.post('/attendance/scan-qr', async (req, res) => {
     if (parsed.empId) {
       employee = await Employee.findByPk(parsed.empId, {
         include: [
-          { model: User, as: 'user', attributes: ['name', 'email', 'avatar'] },
+          { model: User, as: 'user', attributes: ['name', 'email'] },
           { model: Department, as: 'department', attributes: ['name'] },
           { model: Position, as: 'position', attributes: ['name'] }
         ]
@@ -916,7 +916,7 @@ router.post('/attendance/scan-qr', async (req, res) => {
           ]
         },
         include: [
-          { model: User, as: 'user', attributes: ['name', 'email', 'avatar'] },
+          { model: User, as: 'user', attributes: ['name', 'email'] },
           { model: Department, as: 'department', attributes: ['name'] },
           { model: Position, as: 'position', attributes: ['name'] }
         ]
