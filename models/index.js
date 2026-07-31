@@ -128,7 +128,7 @@ Employee.belongsTo(Position, { foreignKey: 'position_id', as: 'position' });
 // Reverse: User/Department/Position has many Employees
 User.hasOne(Employee, { foreignKey: 'user_id', as: 'employee' });
 Department.hasMany(Employee, { foreignKey: 'department_id', as: 'employees' });
-Position.hasMany(Employee, { foreignKey: 'department_id', as: 'employees' });
+Position.hasMany(Employee, { foreignKey: 'position_id', as: 'employees' });
 
 // Position belongs to Department
 Position.belongsTo(Department, { foreignKey: 'department_id', as: 'department' });
