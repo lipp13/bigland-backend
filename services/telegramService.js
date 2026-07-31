@@ -15,7 +15,7 @@ async function sendTelegramAuditLog(logData) {
       return;
     }
 
-    const { action, employee, record, deviceInfo, ip, location } = logData;
+    const { action, employee, record, ip, location } = logData;
     const isCheckIn = action === 'CHECK_IN';
     const actionBadge = isCheckIn ? '🟢 <b>ABSEN MASUK (SCAN 1/2)</b>' : '🔵 <b>ABSEN PULANG (SCAN 2/2)</b>';
 
@@ -35,7 +35,6 @@ ${actionBadge}
 🏢 <b>DEPARTEMEN:</b> ${empDept} — ${empPos}
 ⏰ <b>WAKTU SCAN:</b> ${scanDate} Pukul ${scanTime} WIB
 📍 <b>TERMINAL / LOKASI:</b> ${location || 'Lobi Utama Bigland Hotel Sentul'}
-📱 <b>PERANGKAT:</b> ${deviceInfo || 'Browser Kiosk Terminal'}
 🌐 <b>IP ADDRESS:</b> <code>${ip || '127.0.0.1'}</code>
 🛡️ <b>LIMIT HARIAN:</b> Scan Ke-${isCheckIn ? '1 (Masuk)' : '2 (Pulang)'} dari Maks. 2x
 ━━━━━━━━━━━━━━━━━━━━━━━━━━
