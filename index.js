@@ -9,9 +9,9 @@ const apiRoutes = require('./routes/api');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// CORS configuration
+// CORS configuration (allow all origins in production & local)
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:5173'],
+  origin: true,
   credentials: true
 }));
 
@@ -41,14 +41,22 @@ app.use((err, req, res, next) => {
 });
 
 // Database Sync & Server Start
-sequelize.sync({ alter: true }).then(() => {
-  console.log('✅ MySQL Database synchronized successfully.');
-  app.listen(PORT, () => {
-    console.log(`🚀 Server Bigland HRIS running on port ${PORT}`);
+if (process.env.NODE_ENV !== 'test') {
+  sequelize.sync({ alter: true }).then(() => {
+    console.log('✅ MySQL Database synchronized successfully.');
+    if (require.main === module) {
+      app.listen(PORT, () => {
+        console.log(`🚀 Server Bigland HRIS running on port ${PORT}`);
+      });
+    }
+  }).catch(err => {
+    console.error('❌ Database connection/sync failed:', err.message);
+    if (require.main === module) {
+      app.listen(PORT, () => {
+        console.log(`⚠️ Server Bigland HRIS running on port ${PORT} (Database connection pending)`);
+      });
+    }
   });
-}).catch(err => {
-  console.error('❌ Database connection/sync failed:', err.message);
-  app.listen(PORT, () => {
-    console.log(`⚠️ Server Bigland HRIS running on port ${PORT} (Database connection pending)`);
-  });
-});
+}
+
+module.exports = app;

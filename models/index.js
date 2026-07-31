@@ -1,11 +1,14 @@
 const { Sequelize, DataTypes } = require('sequelize');
 
-const sequelize = new Sequelize(
-  process.env.DB_NAME || 'bigland_hris',
-  process.env.DB_USER || 'root',
-  process.env.DB_PASS || '',
-  {
-    host: process.env.DB_HOST || 'localhost',
+const port = parseInt(process.env.DB_PORT || process.env.MYSQLPORT || '3306', 10);
+const host = process.env.DB_HOST || process.env.MYSQLHOST || 'localhost';
+const user = process.env.DB_USER || process.env.MYSQLUSER || 'root';
+const password = process.env.DB_PASS || process.env.MYSQLPASSWORD || process.env.DB_PASSWORD || '';
+const database = process.env.DB_NAME || process.env.MYSQLDATABASE || 'bigland_hris';
+
+const dbUrl = process.env.MYSQL_PUBLIC_URL || process.env.MYSQL_URL || process.env.DATABASE_URL;
+if (dbUrl) {
+  sequelize = new Sequelize(dbUrl, {
     dialect: 'mysql',
     logging: false,
     timezone: '+07:00',
@@ -13,8 +16,20 @@ const sequelize = new Sequelize(
       timestamps: true,
       underscored: true
     }
-  }
-);
+  });
+} else {
+  sequelize = new Sequelize(database, user, password, {
+    host,
+    port,
+    dialect: 'mysql',
+    logging: false,
+    timezone: '+07:00',
+    define: {
+      timestamps: true,
+      underscored: true
+    }
+  });
+}
 
 // 1. User Model
 const User = sequelize.define('User', {
