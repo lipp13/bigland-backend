@@ -821,19 +821,13 @@ router.post('/attendance/check-out', authenticate, async (req, res) => {
   }
 });
 
-// Helper for generating daily QR Code token
+// Helper for generating daily QR Code token (Low Density ultra-compact format for instant webcam reading)
 function generateDailyQrToken(employeeId, empCode, dateStr) {
   const secret = JWT_SECRET || 'bigland_sentul_jwt_secret_key_2026';
   const code = empCode || `EMP-${employeeId}`;
   const raw = `BIGLAND-QR|${employeeId}|${code}|${dateStr}|${secret}`;
-  const hash = crypto.createHash('sha256').update(raw).digest('hex').substring(0, 12);
-  return JSON.stringify({
-    sys: 'BIGLAND-HRIS',
-    empId: employeeId,
-    nip: code,
-    date: dateStr,
-    hash: hash
-  });
+  const hash = crypto.createHash('sha256').update(raw).digest('hex').substring(0, 10);
+  return `BG|${employeeId}|${dateStr}|${hash}`;
 }
 
 // GET /api/attendance/employee-qr - Fetch dynamic daily QR code for employee
@@ -884,11 +878,24 @@ router.post('/attendance/scan-qr', async (req, res) => {
       return res.status(400).json({ message: 'Data Kode QR tidak valid atau kosong.' });
     }
 
-    let parsed = null;
-    try {
-      parsed = typeof qrData === 'string' ? JSON.parse(qrData) : qrData;
-    } catch (e) {
-      parsed = { nip: String(qrData).trim() };
+    let parsed = { empId: null, nip: null, date: null, hash: null };
+    const rawStr = String(qrData).trim();
+
+    if (rawStr.startsWith('BG|')) {
+      const parts = rawStr.split('|');
+      parsed.empId = parts[1];
+      parsed.date = parts[2];
+      parsed.hash = parts[3];
+    } else {
+      try {
+        const json = typeof qrData === 'string' ? JSON.parse(qrData) : qrData;
+        parsed.empId = json.empId;
+        parsed.nip = json.nip;
+        parsed.date = json.date;
+        parsed.hash = json.hash;
+      } catch (e) {
+        parsed.nip = rawStr;
+      }
     }
 
     const today = new Date().toISOString().split('T')[0];
