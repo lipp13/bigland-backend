@@ -1358,6 +1358,10 @@ router.get('/system/backup', authenticate, requireSuperAdmin, async (req, res) =
     res.setHeader('Content-Disposition', `attachment; filename="Backup_Bigland_HRIS_${new Date().toISOString().split('T')[0]}.json"`);
     return res.send(JSON.stringify(backupData, null, 2));
   } catch (err) {
+    return res.status(500).json({ message: 'Gagal membuat cadangan database.', error: err.message });
+  }
+});
+
 // =========================================================
 // ANNOUNCEMENTS CRUD
 // =========================================================
