@@ -52,7 +52,7 @@ DB_HOST=localhost
 DB_USER=root
 DB_PASS=
 DB_NAME=bigland_hris
-JWT_SECRET=bigland_hris_secret_key_2026
+JWT_SECRET=
 ```
 
 ### 3. Eksekusi Database & Seeding Data Awal
